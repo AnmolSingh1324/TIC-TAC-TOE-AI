@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tic-Tac-Toe AI - Unbeatable</title>
+<style>
+  :root {
+    --cell-size: 10rem;
+    --gap-size: 1rem;
+    --color-bg-cell: #4a3c70;
+    --color-bg-cell-hover: #5a4d91;
+    --color-win: #2d6a4f;
+    --color-human: #ffeead;
+    --color-ai: #89cff0;
+    --color-text: #f8f8f8;
+    --color-button-bg: #764ba2;
+    --color-button-bg-hover: #6f419d;
+    --color-loading-text: #e0e0e0;
+  }
+
+  body {
+    /* Using a placeholder image for demonstration. Replace with your actual cat.gif.gif if available locally. */
+    /* For production, ensure the image path is correct and consider a robust image loading strategy. */
+    background: url('cat.gif.gif') no-repeat center center fixed;
+    background-size: cover;
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--color-text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    justify-content: center;
+    padding: 1rem;
+    user-select: none;
+    overflow: auto; /* Allow scrolling on smaller screens if content overflows */
+  }
+
+  h1 {
+    margin-bottom: 0.1em;
+    text-shadow: 0 0 6px rgba(255,255,255,0.8);
+    font-size: 2.5rem;
+  }
+
+  #game {
+    display: grid;
+    grid-template-columns: repeat(3, var(--cell-size));
+    grid-template-rows: repeat(3, var(--cell-size));
+    gap: var(--gap-size);
+    margin: 1.5rem 0;
+    outline: none;
+  }
+
+  .cell {
+    background: var(--color-bg-cell);
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 5rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    transition: background-color 0.3s ease, transform 0.1s ease-out;
+  }
+  .cell:hover:not(.taken), .cell:focus-visible:not(.taken) {
+    background-color: var(--color-bg-cell-hover);
+    transform: scale(1.02); /* Slight scale effect on hover/focus */
+    outline: none;
+  }
+  .cell.taken {
+    cursor: default;
+    color: var(--color-text);
+  }
+
+  #status {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    min-height: 1.5em; /* Ensure consistent height */
+    text-shadow: 0 0 4px rgba(0,0,0,0.6);
+  }
+
+  #difficulty {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+  }
+
+  label {
+    margin-right: 0.5rem;
+  }
+
+  select {
+    padding: 0.2rem 0.5rem;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    background-color: var(--color-bg-cell); /* Match theme */
+    color: var(--color-text);
+  }
+
+  button#restart {
+    background: var(--color-button-bg);
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 25px;
+    font-size: 1.1rem;
+    color: white;
+    cursor: pointer;
+    box-shadow: 0 0 20px #9f72c8;
+    transition: background 0.4s ease, transform 0.1s ease-out;
+    user-select: none;
+  }
+  button#restart:hover, button#restart:focus-visible {
+    background: var(--color-button-bg-hover);
+    transform: translateY(-2px); /* Slight lift on hover/focus */
+    outline: none;
+  }
+
+  footer {
+    position: fixed;
+    bottom: 10px;
+    font-size: 0.9rem;
+    color: #d8d8d8aa;
+    user-select: none;
+  }
+
+  /* AI Thinking Indicator */
+  .thinking-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--color-loading-text);
+    box-shadow: 0 0 5px var(--color-loading-text);
+    animation: pulse 1.5s infinite ease-in-out;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  @keyframes pulse {
+    0% { transform: scale(0.8); opacity: 0.7; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.8); opacity: 0.7; }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    :root {
+      --cell-size: 8rem;
+    }
+    h1 {
+      font-size: 2.2rem;
+    }
+    #status {
+      font-size: 1.1rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    :root {
+      --cell-size: 6rem; /* Further reduce cell size for very small screens */
+      --gap-size: 0.8rem;
+    }
+    h1 {
+      font-size: 1.8rem;
+    }
+    #status {
+      font-size: 0.95rem;
+    }
+    .cell {
+      font-size: 4rem;
+    }
+    button#restart {
+      font-size: 0.95rem;
+      padding: 0.4rem 1rem;
+    }
+    footer {
+      font-size: 0.8rem;
+      bottom: 5px;
+    }
+  }
+</style>
+</head>
+<body>
+<h1>Tic-Tac-Toe AI</h1>
+<div id="status" role="status" aria-live="polite" aria-atomic="true">Your turn (You are X)</div>
+<div id="difficulty">
+  <label for="difficulty-select">Select Difficulty:</label>
+  <select id="difficulty-select" aria-label="Select AI difficulty level">
+    <option value="easy">Easy</option>
+    <option value="medium">Medium</option>
+    <option value="hard" selected>Hard</option>
+  </select>
+</div>
+<div id="game" aria-label="Tic Tac Toe board" role="grid" tabindex="0">
+  <div role="gridcell" aria-label="Top left cell, empty" tabindex="0" class="cell" data-index="0"></div>
+  <div role="gridcell" aria-label="Top center cell, empty" tabindex="0" class="cell" data-index="1"></div>
+  <div role="gridcell" aria-label="Top right cell, empty" tabindex="0" class="cell" data-index="2"></div>
+  <div role="gridcell" aria-label="Middle left cell, empty" tabindex="0" class="cell" data-index="3"></div>
+  <div role="gridcell" aria-label="Middle center cell, empty" tabindex="0" class="cell" data-index="4"></div>
+  <div role="gridcell" aria-label="Middle right cell, empty" tabindex="0" class="cell" data-index="5"></div>
+  <div role="gridcell" aria-label="Bottom left cell, empty" tabindex="0" class="cell" data-index="6"></div>
+  <div role="gridcell" aria-label="Bottom center cell, empty" tabindex="0" class="cell" data-index="7"></div>
+  <div role="gridcell" aria-label="Bottom right cell, empty" tabindex="0" class="cell" data-index="8"></div>
+</div>
+<button id="restart" aria-label="Restart game">Restart Game</button>
+
+<footer>Unbeatable AI powered by Minimax Algorithm with Alpha-Beta Pruning Created By Anmol Singh</footer>
+
+<script>
+(() => {
+  const humanPlayer = 'X';
+  const aiPlayer = 'O';
+  let board = Array(9).fill(null);
+  let gameOver = false;
+  const cells = document.querySelectorAll('.cell');
+  const status = document.getElementById('status');
+  const restartBtn = document.getElementById('restart');
+  const difficultySelect = document.getElementById('difficulty-select');
+  let difficulty = difficultySelect.value;
+  let isAITurn = false; // Flag to prevent human moves during AI turn
+
+  // Update difficulty on change
+  difficultySelect.addEventListener('change', (e) => {
+    difficulty = e.target.value;
+    if (!gameOver) {
+      updateStatus(`Difficulty set to ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}. Your turn (You are ${humanPlayer})`);
+    }
+    // If it's AI's turn and difficulty changes, restart game for consistency
+    if (isAITurn) {
+      restartGame();
+    }
+  });
+
+  // Common winning combinations
+  const winCombos = [
+    [0,1,2],[3,4,5],[6,7,8], // rows
+    [0,3,6],[1,4,7],[2,5,8], // cols
+    [0,4,8],[2,4,6]          // diagonals
+  ];
+
+  // Check if player has won
+  function checkWinner(bd, player) {
+    return winCombos.some(combo => combo.every(index => bd[index] === player));
+  }
+
+  // Check if the board is a tie
+  function checkTie() {
+    return board.every(cell => cell !== null);
+  }
+
+  // Highlight winning cells
+  function highlightWinningCells(player) {
+    for (let combo of winCombos) {
+      if (combo.every(index => board[index] === player)) {
+        combo.forEach(index => cells[index].style.backgroundColor = 'var(--color-win)');
+        break;
+      }
+    }
+  }
+
+  // Update status message with optional loading indicator
+  function updateStatus(message, showLoading = false) {
+    status.innerHTML = message; // Use innerHTML to allow for span
+    if (showLoading) {
+      const loadingIndicator = document.createElement('span');
+      loadingIndicator.classList.add('thinking-indicator');
+      status.appendChild(loadingIndicator);
+    }
+  }
+
+  // Minimax algorithm with alpha-beta pruning
+  function minimax(newBoard, player, alpha, beta) {
+    if (checkWinner(newBoard, humanPlayer)) {
+      return {score: -10};
+    }
+    if (checkWinner(newBoard, aiPlayer)) {
+      return {score: 10};
+    }
+    if (newBoard.every(cell => cell !== null)) {
+      return {score: 0};
+    }
+
+    let moves = [];
+
+    for (let i = 0; i < 9; i++) {
+      if (newBoard[i] === null) {
+        let move = {};
+        move.index = i;
+        newBoard[i] = player;
+
+        let result;
+        if (player === aiPlayer) {
+          result = minimax(newBoard, humanPlayer, alpha, beta);
+          move.score = result.score;
+          alpha = Math.max(alpha, move.score);
+        } else {
+          result = minimax(newBoard, aiPlayer, alpha, beta);
+          move.score = result.score;
+          beta = Math.min(beta, move.score);
+        }
+
+        newBoard[i] = null; // Undo the move
+        moves.push(move);
+
+        if (beta <= alpha) {
+          break; // Alpha-Beta Pruning
+        }
+      }
+    }
+
+    let bestMove;
+    if (player === aiPlayer) {
+      let bestScore = -Infinity;
+      for (let move of moves) {
+        if (move.score > bestScore) {
+          bestScore = move.score;
+          bestMove = move;
+        }
+      }
+    } else {
+      let bestScore = Infinity;
+      for (let move of moves) {
+        if (move.score < bestScore) {
+          bestScore = move.score;
+          bestMove = move;
+        }
+      }
+    }
+    return bestMove;
+  }
+
+  // Find if AI or human can win on next move; returns winning/blocking move index or null
+  function findWinningMove(playerBoard, player) {
+    for (let i = 0; i < 9; i++) {
+      if (playerBoard[i] === null) {
+        let boardCopy = playerBoard.slice();
+        boardCopy[i] = player;
+        if (checkWinner(boardCopy, player)) {
+          return i;
+        }
+      }
+    }
+    return null;
+  }
+
+  // AI turn logic with difficulty settings
+  function aiTurn() {
+    isAITurn = true; // Set flag
+    updateStatus("AI is thinking", true); // Show loading indicator
+    
+    // Disable cells during AI turn
+    cells.forEach(cell => cell.classList.add('taken')); 
+
+    setTimeout(() => {
+      if (gameOver) {
+        isAITurn = false; // Reset flag
+        return;
+      }
+
+      let bestMoveIndex;
+
+      if (difficulty === 'easy') {
+        // Random move
+        const availableMoves = board.map((cell, idx) => cell === null ? idx : null).filter(i => i !== null);
+        bestMoveIndex = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+      } else if (difficulty === 'medium') {
+        // Try to win
+        bestMoveIndex = findWinningMove(board, aiPlayer);
+        if (bestMoveIndex === null) {
+          // Try to block human win
+          bestMoveIndex = findWinningMove(board, humanPlayer);
+        }
+        if (bestMoveIndex === null) {
+          // Random move otherwise
+          const availableMoves = board.map((cell, idx) => cell === null ? idx : null).filter(i => i !== null);
+          bestMoveIndex = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+        }
+      } else {
+        // Hard difficulty, full minimax
+        const bestMove = minimax(board, aiPlayer, -Infinity, Infinity);
+        bestMoveIndex = bestMove.index;
+      }
+
+      if (bestMoveIndex !== undefined && bestMoveIndex !== null && board[bestMoveIndex] === null) {
+        makeMove(bestMoveIndex, aiPlayer);
+
+        if (checkWinner(board, aiPlayer)) {
+          gameOver = true;
+          updateStatus("AI wins! Better luck next time.");
+          highlightWinningCells(aiPlayer);
+        } else if (checkTie()) {
+          gameOver = true;
+          updateStatus("It's a draw!");
+        } else {
+          updateStatus(`Your turn (You are ${humanPlayer})`);
+        }
+      }
+      isAITurn = false; // Reset flag
+      // Re-enable cells after AI turn
+      cells.forEach((cell, idx) => {
+        if (board[idx] === null) {
+          cell.classList.remove('taken');
+        }
+      });
+      // Set focus to the first available cell after AI move
+      focusFirstAvailableCell();
+    }, 500); // Increased delay slightly for better visibility of thinking indicator
+  }
+
+  // Make a move on board and update UI
+  function makeMove(index, player) {
+    if (board[index] === null && !gameOver) {
+      board[index] = player;
+      const cell = cells[index];
+      cell.textContent = player;
+      cell.classList.add('taken');
+      cell.style.color = player === humanPlayer ? 'var(--color-human)' : 'var(--color-ai)';
+      cell.setAttribute('aria-label', `${player} in cell ${index + 1}`);
+      cell.tabIndex = -1; // Remove focus once occupied
+    }
+  }
+
+  // Check game result after human move
+  function handleHumanMove(idx) {
+    if (!gameOver && board[idx] === null && !isAITurn) { // Prevent human move during AI turn
+      makeMove(idx, humanPlayer);
+
+      if (checkWinner(board, humanPlayer)) {
+        gameOver = true;
+        updateStatus("You win! 🎉");
+        highlightWinningCells(humanPlayer);
+      } else if (checkTie()) {
+        gameOver = true;
+        updateStatus("It's a draw!");
+      } else {
+        aiTurn();
+      }
+    }
+  }
+
+  // Set focus to the first available cell
+  function focusFirstAvailableCell() {
+    for (let i = 0; i < cells.length; i++) {
+      if (board[i] === null) {
+        cells[i].focus();
+        return;
+      }
+    }
+    // If no cells are available (game over/tie), focus restart button
+    restartBtn.focus();
+  }
+
+  // Restart game state and UI
+  function restartGame() {
+    board = Array(9).fill(null);
+    gameOver = false;
+    isAITurn = false; // Reset AI turn flag
+    updateStatus(`Your turn (You are ${humanPlayer})`);
+    cells.forEach((cell, index) => {
+      cell.textContent = '';
+      cell.classList.remove('taken');
+      cell.style.backgroundColor = 'var(--color-bg-cell)';
+      cell.style.color = '';
+      cell.tabIndex = 0; // Make cells focusable again
+      cell.setAttribute('aria-label', `Empty cell ${index + 1}`);
+    });
+    focusFirstAvailableCell(); // Set focus to the first cell or appropriate one
+  }
+
+  // Handle click/tap events on cells
+  function cellClickHandler(e) {
+    const idx = parseInt(e.target.dataset.index);
+    handleHumanMove(idx);
+  }
+
+  // Handle keyboard navigation: Enter or Space to mark cell, arrow keys for navigation
+  function cellKeyHandler(e) {
+    const target = e.target;
+    if (target.classList.contains('cell') && !gameOver && !isAITurn) {
+      const idx = parseInt(target.dataset.index);
+      const row = Math.floor(idx / 3);
+      const col = idx % 3;
+
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault(); // prevent scroll on space
+        handleHumanMove(idx);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const nextIdx = (row > 0) ? (idx - 3) : (idx + 6); // Wrap around
+        cells[nextIdx].focus();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const nextIdx = (row < 2) ? (idx + 3) : (idx - 6); // Wrap around
+        cells[nextIdx].focus();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const nextIdx = (col > 0) ? (idx - 1) : (idx + 2); // Wrap around
+        cells[nextIdx].focus();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const nextIdx = (col < 2) ? (idx + 1) : (idx - 2); // Wrap around
+        cells[nextIdx].focus();
+      }
+    }
+  }
+
+  // Add event listeners
+  cells.forEach((cell, index) => {
+    cell.addEventListener('click', cellClickHandler);
+    cell.addEventListener('keydown', cellKeyHandler);
+    cell.setAttribute('aria-label', `Empty cell ${index + 1}`);
+  });
+
+  restartBtn.addEventListener('click', restartGame);
+
+  // Initial setup when the page loads
+  window.onload = function() {
+    restartGame(); // Initialize game state and focus
+  };
+})();
+</script>
+</body>
+</html>
